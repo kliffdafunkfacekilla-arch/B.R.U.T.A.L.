@@ -1,6 +1,9 @@
 import hashlib
 import json
 import os
+import aiofiles
+import shutil
+import urllib.request
 from typing import Optional, Dict
 
 class AssetCacheManager:
@@ -34,7 +37,7 @@ class AssetCacheManager:
 
     # --- IMAGE HANDLING ---
 
-    def get_scene_image(self, room_id: str, prompt: str, generator_func) -> str:
+    async def get_scene_image(self, room_id: str, prompt: str, generator_func) -> str:
         """
         1. Check if Room ID has a saved image.
         2. If yes, return filepath.
@@ -53,23 +56,74 @@ class AssetCacheManager:
         print(f"[CACHE MISS] Generating new image for {room_id}...")
 
         # Call the expensive API
-        # image_url = generator_func(prompt)
+        # image_url = await generator_func(prompt)
         # For this example, we simulate a downloaded file path
         filename = f"{room_id}_{prompt_hash[:8]}.png"
         filepath = os.path.join(self.cache_dir, "images", filename)
 
         # Simulate saving the image bytes to disk
-        # with open(filepath, 'wb') as f: f.write(image_bytes)
+        async with aiofiles.open(filepath, 'wb') as f:
+            # await f.write(image_bytes)
+            pass
 
         # Update Index
         self.assets["images"][room_id] = filepath
         self._save_index()
 
         return filepath
+        generated_content = generator_func(prompt)
+
+        filename = f"{room_id}_{prompt_hash[:8]}.png"
+        filepath = os.path.join(self.cache_dir, "images", filename)
+
+        # Save the image bytes to disk
+        try:
+            if isinstance(generated_content, bytes):
+                with open(filepath, 'wb') as f:
+                    f.write(generated_content)
+            elif isinstance(generated_content, str):
+                # Assume it's a URL
+                # Use a proper User-Agent to avoid 403s from some servers
+                req = urllib.request.Request(
+                    generated_content,
+                    headers={'User-Agent': 'Mozilla/5.0'}
+                )
+                with urllib.request.urlopen(req) as response, open(filepath, 'wb') as out_file:
+                    shutil.copyfileobj(response, out_file)
+            else:
+                raise ValueError(f"Unexpected return type from generator_func: {type(generated_content)}")
+        except Exception as e:
+            print(f"[ERROR] Failed to save image: {e}")
+            raise e
+        try:
+            # Call the expensive API
+            image_url = generator_func(prompt)
+
+            # For this example, we simulate a downloaded file path
+            filename = f"{room_id}_{prompt_hash[:8]}.png"
+            filepath = os.path.join(self.cache_dir, "images", filename)
+
+            # Download the image
+            with urllib.request.urlopen(image_url, timeout=30) as response:
+                image_bytes = response.read()
+
+            # Save the image bytes to disk
+            with open(filepath, 'wb') as f:
+                f.write(image_bytes)
+
+            # Update Index
+            self.assets["images"][room_id] = filepath
+            self._save_index()
+
+            return filepath
+
+        except Exception as e:
+            print(f"Error generating or saving image: {e}")
+            raise e
 
     # --- NPC HANDLING (The Consistency Engine) ---
 
-    def get_npc_assets(self, npc_id: str, description: str) -> Dict:
+    async def get_npc_assets(self, npc_id: str, description: str) -> Dict:
         """
         Ensures an NPC keeps their face and voice forever.
         """

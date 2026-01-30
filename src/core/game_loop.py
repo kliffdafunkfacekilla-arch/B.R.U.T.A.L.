@@ -1,17 +1,19 @@
 import time
+import asyncio
 from src.modules.llm_gateway import LLMGateway
 from src.modules.intent_parser import IntentParser
 from src.core.session_manager import SessionManager
 # from src.models.dungeon import RoomNode
-# from src.core.table_engine import TableLogicEngine
+from src.core.table_engine import TableLogicEngine
 # from src.modules.lore import hydrate_session_with_lore
 
-def run_game_loop():
+async def run_game_loop():
     print("--- INITIALIZING AI DUNGEON MASTER ---")
 
     # 1. SETUP PHASE (Macro & Meso Layers)
     llm = LLMGateway(api_key="sk-...")
     parser = IntentParser(llm)
+    logic_engine = TableLogicEngine(player_level=1, biome="dungeon")
 
     # Load session
     session_manager = SessionManager()
@@ -24,6 +26,19 @@ def run_game_loop():
         # Fallback if room_01 missing (shouldn't happen with default creator)
         print("Error: room_01 not found in session. Exiting.")
         return
+    # Simulate loading the "Session" we generated earlier
+    current_room = {
+        "id": "room_01",
+        "title": "Damp Crypt",
+        "exits": ["north"],
+        "entities": [{
+            "name": "Goblin Scavenger",
+            "hp_current": 7,
+            "hp_max": 7
+        }],
+        "loot": [],
+        "description_initial": "A cold, damp crypt."
+    }
 
     # 2. START GAME LOOP (Micro Layer)
     game_running = True
@@ -44,6 +59,7 @@ def run_game_loop():
 
         # B. INTENT PARSING (Logic Router)
         # The Parser looks at valid targets in the room to help the AI decide
+        valid_targets = [e['name'] for e in current_room['entities']]
         user_intent = parser.parse_input(user_audio, valid_targets=valid_targets)
         print(f"⚙️ [SYSTEM PARSED]: {user_intent}")
 
@@ -58,6 +74,7 @@ def run_game_loop():
             # Optionally save state: session_manager.save_session(session)
         else:
             logic_result = "You look around. Nothing happens."
+        logic_result = logic_engine.process_player_action(user_intent.get('action'), current_room)
 
         # D. NARRATIVE GENERATION (The Storyteller)
         # Combine the Logic Result with the Lore/Atmosphere
@@ -69,10 +86,10 @@ def run_game_loop():
         Write a 2-sentence description of this outcome.
         """
 
-        story_output = llm.generate_narrative("You are a DM.", narrative_prompt)
+        story_output = await llm.generate_narrative("You are a DM.", narrative_prompt)
 
         # E. OUTPUT (TTS)
         llm.text_to_speech(story_output)
 
 if __name__ == "__main__":
-    run_game_loop()
+    asyncio.run(run_game_loop())
