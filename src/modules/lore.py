@@ -57,6 +57,11 @@ class WorldBible(BaseModel):
             if rid in lore_map:
                 relevant_chunks.append(lore_map[rid])
 
+        query_tags_set = set(query_tags)
+        for fragment in self.global_lore:
+            # Simple intersection logic (in prod, use semantic search)
+            if any(tag in query_tags_set for tag in fragment.tags):
+                relevant_chunks.append(fragment)
         return relevant_chunks
 
 class SessionContext(BaseModel):

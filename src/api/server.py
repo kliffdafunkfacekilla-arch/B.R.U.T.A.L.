@@ -102,7 +102,7 @@ class AIDungeonMaster:
         Write a 2-sentence immersive DM response.
         """
 
-        narrative = self.llm_gateway.generate_narrative("You are a DM", prompt)
+        narrative = await self.llm_gateway.generate_narrative("You are a DM", prompt)
 
         # STEP 5: MEDIA DIRECTOR (Cues)
         # Mocking SceneState
