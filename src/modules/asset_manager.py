@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import urllib.request
 from typing import Optional, Dict
 
 class AssetCacheManager:
@@ -52,20 +53,31 @@ class AssetCacheManager:
 
         print(f"[CACHE MISS] Generating new image for {room_id}...")
 
-        # Call the expensive API
-        # image_url = generator_func(prompt)
-        # For this example, we simulate a downloaded file path
-        filename = f"{room_id}_{prompt_hash[:8]}.png"
-        filepath = os.path.join(self.cache_dir, "images", filename)
+        try:
+            # Call the expensive API
+            image_url = generator_func(prompt)
 
-        # Simulate saving the image bytes to disk
-        # with open(filepath, 'wb') as f: f.write(image_bytes)
+            # For this example, we simulate a downloaded file path
+            filename = f"{room_id}_{prompt_hash[:8]}.png"
+            filepath = os.path.join(self.cache_dir, "images", filename)
 
-        # Update Index
-        self.assets["images"][room_id] = filepath
-        self._save_index()
+            # Download the image
+            with urllib.request.urlopen(image_url, timeout=30) as response:
+                image_bytes = response.read()
 
-        return filepath
+            # Save the image bytes to disk
+            with open(filepath, 'wb') as f:
+                f.write(image_bytes)
+
+            # Update Index
+            self.assets["images"][room_id] = filepath
+            self._save_index()
+
+            return filepath
+
+        except Exception as e:
+            print(f"Error generating or saving image: {e}")
+            raise e
 
     # --- NPC HANDLING (The Consistency Engine) ---
 
