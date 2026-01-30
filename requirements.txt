@@ -2,3 +2,9 @@ fastapi
 uvicorn
 pydantic
 aiofiles
+pytest
+httpx
+aiofiles
+chromadb
+sentence-transformers
+openai
