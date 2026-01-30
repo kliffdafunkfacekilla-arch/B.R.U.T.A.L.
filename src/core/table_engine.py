@@ -1,4 +1,5 @@
 import random
+import bisect
 from typing import List, Dict
 
 class TableLogicEngine:
@@ -53,16 +54,28 @@ class TableLogicEngine:
             budget = self._calculate_encounter_budget(difficulty)
             available_monsters = self.monster_tables.get(self.biome, [])
 
+            # Optimization: Sort monsters by CR once to avoid repeated filtering
+            # Timsort is efficient (O(N)) if already sorted
+            available_monsters.sort(key=lambda x: x['cr'])
+
+            # Create a separate list of CRs for binary search
+            monster_crs = [m['cr'] for m in available_monsters]
+
             current_cost = 0.0
 
             # Simple greedy algorithm to fill the room
             while budget > 0.25:
-                # Filter monsters we can afford
-                affordable = [m for m in available_monsters if m['cr'] <= budget]
-                if not affordable:
+                # Find the index where monsters are too expensive
+                idx = bisect.bisect_right(monster_crs, budget)
+
+                # If no monsters are affordable (idx is 0), stop
+                if idx == 0:
                     break
 
-                choice = random.choice(affordable)
+                # Pick a random monster from the affordable ones (indices 0 to idx-1)
+                # This is O(1) compared to O(N) for filtering
+                choice_idx = random.randint(0, idx - 1)
+                choice = available_monsters[choice_idx]
 
                 # Add to room
                 room_data["entities"].append({
