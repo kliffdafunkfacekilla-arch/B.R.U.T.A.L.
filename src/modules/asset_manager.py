@@ -56,6 +56,21 @@ class AssetCacheManager:
         print(f"[CACHE MISS] Generating new image for {room_id}...")
 
         # Call the expensive API
+        image_data = generator_func(prompt)
+
+        filename = f"{room_id}_{prompt_hash[:8]}.png"
+        filepath = os.path.join(self.cache_dir, "images", filename)
+
+        if isinstance(image_data, bytes):
+            with open(filepath, 'wb') as f:
+                f.write(image_data)
+        elif isinstance(image_data, str):
+            # Assume it's a URL
+            urllib.request.urlretrieve(image_data, filepath)
+        else:
+            # Fallback or error handling
+            print(f"[ERROR] Generator returned unknown type: {type(image_data)}")
+            return ""
         # image_url = await generator_func(prompt)
         # For this example, we simulate a downloaded file path
         filename = f"{room_id}_{prompt_hash[:8]}.png"
