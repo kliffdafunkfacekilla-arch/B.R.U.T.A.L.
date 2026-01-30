@@ -1,6 +1,7 @@
 fastapi
 uvicorn
 pydantic
+aiofiles
 pytest
 httpx
 aiofiles
