@@ -34,9 +34,10 @@ class WorldBible(BaseModel):
     def query_lore(self, query_tags: List[str]) -> List[LoreFragment]:
         """The 'Librarian': Finds lore relevant to specific tags."""
         relevant_chunks = []
+        query_tags_set = set(query_tags)
         for fragment in self.global_lore:
             # Simple intersection logic (in prod, use semantic search)
-            if any(tag in query_tags for tag in fragment.tags):
+            if any(tag in query_tags_set for tag in fragment.tags):
                 relevant_chunks.append(fragment)
         return relevant_chunks
 
