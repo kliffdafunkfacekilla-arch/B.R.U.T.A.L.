@@ -4,17 +4,17 @@ class LLMGateway:
     def __init__(self, api_key: str):
         self.api_key = api_key
 
-    def generate_narrative(self, system_prompt: str, user_prompt: str) -> str:
+    async def generate_narrative(self, system_prompt: str, user_prompt: str) -> str:
         """
         Used for the Storyteller / Micro-Generator.
         Returns pure text for the TTS to read.
         """
         # Call GPT-4 / Gemini Pro here
-        # response = client.chat.completions.create(...)
+        # response = await client.chat.completions.create(...)
         print(f"\n[AI THOUGHTS]: Processing Narrative...")
         return "Simulated Narrative: The goblin shrieks as your sword connects!"
 
-    def generate_json(self, user_text: str, schema_prompt: str) -> str:
+    async def generate_json(self, user_text: str, schema_prompt: str) -> str:
         """
         Used for the Intent Parser and Macro-Generator.
         Forces the model to output valid JSON.
