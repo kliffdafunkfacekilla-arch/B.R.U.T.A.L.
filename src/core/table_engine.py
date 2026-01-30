@@ -1,4 +1,5 @@
 import random
+import bisect
 from typing import List, Dict
 
 class TableLogicEngine:
@@ -9,21 +10,21 @@ class TableLogicEngine:
         # --- STATIC DATA TABLES (The "Rulebooks") ---
         self.monster_tables = {
             "dungeon": [
-                {"name": "Goblin Scavenger", "cr": 0.25, "hp": 7, "dmg": "1d6"},
-                {"name": "Skeleton Warrior", "cr": 0.5, "hp": 13, "dmg": "1d8"},
-                {"name": "Orc Grunt", "cr": 1, "hp": 15, "dmg": "1d12+2"}
+                {"name": "Goblin Scavenger", "cr": 0.25, "hp": 7, "ac": 12, "dmg": "1d6", "attacks": [{"name": "Scimitar", "dmg": "1d6+2"}]},
+                {"name": "Skeleton Warrior", "cr": 0.5, "hp": 13, "ac": 13, "dmg": "1d8", "attacks": [{"name": "Shortsword", "dmg": "1d6+2"}]},
+                {"name": "Orc Grunt", "cr": 1, "hp": 15, "ac": 13, "dmg": "1d12+2", "attacks": [{"name": "Greataxe", "dmg": "1d12+3"}]}
             ],
             "crypt": [
-                {"name": "Zombie", "cr": 0.25, "hp": 22, "dmg": "1d6+1"},
-                {"name": "Ghoul", "cr": 1, "hp": 22, "dmg": "2d4+2"}
+                {"name": "Zombie", "cr": 0.25, "hp": 22, "ac": 8, "dmg": "1d6+1", "attacks": [{"name": "Slam", "dmg": "1d6+1"}]},
+                {"name": "Ghoul", "cr": 1, "hp": 22, "ac": 12, "dmg": "2d4+2", "attacks": [{"name": "Claws", "dmg": "2d4+2"}]}
             ]
         }
 
         self.loot_table = [
-            {"name": "Rusted Dagger", "val": 1},
-            {"name": "Gold Pouch", "val": 10},
-            {"name": "Gemstone", "val": 50},
-            {"name": "Potion of Healing", "val": 25}
+            {"name": "Rusted Dagger", "value_gp": 1, "description": "A worn dagger.", "is_magical": False},
+            {"name": "Gold Pouch", "value_gp": 10, "description": "A pouch containing 10gp.", "is_magical": False},
+            {"name": "Gemstone", "value_gp": 50, "description": "A shiny ruby.", "is_magical": False},
+            {"name": "Potion of Healing", "value_gp": 25, "description": "A red liquid.", "is_magical": True}
         ]
 
     def _calculate_encounter_budget(self, difficulty: str) -> float:
@@ -53,22 +54,36 @@ class TableLogicEngine:
             budget = self._calculate_encounter_budget(difficulty)
             available_monsters = self.monster_tables.get(self.biome, [])
 
+            # Optimization: Sort monsters by CR once to avoid repeated filtering
+            # Timsort is efficient (O(N)) if already sorted
+            available_monsters.sort(key=lambda x: x['cr'])
+
+            # Create a separate list of CRs for binary search
+            monster_crs = [m['cr'] for m in available_monsters]
+
             current_cost = 0.0
 
             # Simple greedy algorithm to fill the room
             while budget > 0.25:
-                # Filter monsters we can afford
-                affordable = [m for m in available_monsters if m['cr'] <= budget]
-                if not affordable:
+                # Find the index where monsters are too expensive
+                idx = bisect.bisect_right(monster_crs, budget)
+
+                # If no monsters are affordable (idx is 0), stop
+                if idx == 0:
                     break
 
-                choice = random.choice(affordable)
+                # Pick a random monster from the affordable ones (indices 0 to idx-1)
+                # This is O(1) compared to O(N) for filtering
+                choice_idx = random.randint(0, idx - 1)
+                choice = available_monsters[choice_idx]
 
                 # Add to room
                 room_data["entities"].append({
                     "name": choice["name"],
                     "hp_current": choice["hp"],
-                    "hp_max": choice["hp"]
+                    "hp_max": choice["hp"],
+                    "ac": choice.get("ac", 10),
+                    "attacks": choice.get("attacks", [])
                 })
 
                 budget -= choice['cr']
@@ -79,6 +94,7 @@ class TableLogicEngine:
         # 2. Loot Roll (Table Flow)
         if random.random() < 0.5: # 50% chance of loot
             loot_item = random.choice(self.loot_table)
+            # Adapt legacy keys if needed, but we updated the table
             room_data["loot"].append(loot_item)
             room_data["description_tags"].append(f"has {loot_item['name']}")
 
