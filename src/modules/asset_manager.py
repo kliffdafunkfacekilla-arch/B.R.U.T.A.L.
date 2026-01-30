@@ -1,7 +1,6 @@
 import hashlib
 import json
 import os
-import shutil
 import urllib.request
 from typing import Optional, Dict
 
@@ -54,31 +53,6 @@ class AssetCacheManager:
 
         print(f"[CACHE MISS] Generating new image for {room_id}...")
 
-        # Call the expensive API
-        generated_content = generator_func(prompt)
-
-        filename = f"{room_id}_{prompt_hash[:8]}.png"
-        filepath = os.path.join(self.cache_dir, "images", filename)
-
-        # Save the image bytes to disk
-        try:
-            if isinstance(generated_content, bytes):
-                with open(filepath, 'wb') as f:
-                    f.write(generated_content)
-            elif isinstance(generated_content, str):
-                # Assume it's a URL
-                # Use a proper User-Agent to avoid 403s from some servers
-                req = urllib.request.Request(
-                    generated_content,
-                    headers={'User-Agent': 'Mozilla/5.0'}
-                )
-                with urllib.request.urlopen(req) as response, open(filepath, 'wb') as out_file:
-                    shutil.copyfileobj(response, out_file)
-            else:
-                raise ValueError(f"Unexpected return type from generator_func: {type(generated_content)}")
-        except Exception as e:
-            print(f"[ERROR] Failed to save image: {e}")
-            raise e
         try:
             # Call the expensive API
             image_url = generator_func(prompt)
