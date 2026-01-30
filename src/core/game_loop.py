@@ -1,11 +1,12 @@
 import time
+import asyncio
 from src.modules.llm_gateway import LLMGateway
 from src.modules.intent_parser import IntentParser
 # from src.models.dungeon import RoomNode
 # from src.core.table_engine import TableLogicEngine
 # from src.modules.lore import hydrate_session_with_lore
 
-def run_game_loop():
+async def run_game_loop():
     print("--- INITIALIZING AI DUNGEON MASTER ---")
 
     # 1. SETUP PHASE (Macro & Meso Layers)
@@ -61,10 +62,10 @@ def run_game_loop():
         Write a 2-sentence description of this outcome.
         """
 
-        story_output = llm.generate_narrative("You are a DM.", narrative_prompt)
+        story_output = await llm.generate_narrative("You are a DM.", narrative_prompt)
 
         # E. OUTPUT (TTS)
         llm.text_to_speech(story_output)
 
 if __name__ == "__main__":
-    run_game_loop()
+    asyncio.run(run_game_loop())
