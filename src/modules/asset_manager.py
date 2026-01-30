@@ -79,12 +79,31 @@ class AssetCacheManager:
         except Exception as e:
             print(f"[ERROR] Failed to save image: {e}")
             raise e
+        try:
+            # Call the expensive API
+            image_url = generator_func(prompt)
 
-        # Update Index
-        self.assets["images"][room_id] = filepath
-        self._save_index()
+            # For this example, we simulate a downloaded file path
+            filename = f"{room_id}_{prompt_hash[:8]}.png"
+            filepath = os.path.join(self.cache_dir, "images", filename)
 
-        return filepath
+            # Download the image
+            with urllib.request.urlopen(image_url, timeout=30) as response:
+                image_bytes = response.read()
+
+            # Save the image bytes to disk
+            with open(filepath, 'wb') as f:
+                f.write(image_bytes)
+
+            # Update Index
+            self.assets["images"][room_id] = filepath
+            self._save_index()
+
+            return filepath
+
+        except Exception as e:
+            print(f"Error generating or saving image: {e}")
+            raise e
 
     # --- NPC HANDLING (The Consistency Engine) ---
 

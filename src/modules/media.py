@@ -41,14 +41,14 @@ class MediaDirector:
         }
 
         # Keyword triggers for Sound Effects
-        self.sfx_triggers = {
-            r"\b(hit|slash|cut|damage)\b": "sfx_sword_impact.wav",
-            r"\b(miss|dodge|parry)\b": "sfx_sword_whoosh.wav",
-            r"\b(fire|burn|flame)\b": "sfx_fireball_explode.wav",
-            r"\b(potion|drink|sip)\b": "sfx_bottle_cork.wav",
-            r"\b(scream|shriek|roar)\b": "sfx_monster_roar.wav",
-            r"\b(gold|coin|loot)\b": "sfx_coin_jingle.wav"
-        }
+        self.sfx_triggers = [
+            (re.compile(r"\b(hit|slash|cut|damage)\b", re.IGNORECASE), "sfx_sword_impact.wav"),
+            (re.compile(r"\b(miss|dodge|parry)\b", re.IGNORECASE), "sfx_sword_whoosh.wav"),
+            (re.compile(r"\b(fire|burn|flame)\b", re.IGNORECASE), "sfx_fireball_explode.wav"),
+            (re.compile(r"\b(potion|drink|sip)\b", re.IGNORECASE), "sfx_bottle_cork.wav"),
+            (re.compile(r"\b(scream|shriek|roar)\b", re.IGNORECASE), "sfx_monster_roar.wav"),
+            (re.compile(r"\b(gold|coin|loot)\b", re.IGNORECASE), "sfx_coin_jingle.wav")
+        ]
 
     def analyze_scene_audio(self, narrative_text: str, state: SceneState) -> List[AudioCue]:
         """
@@ -74,8 +74,8 @@ class MediaDirector:
 
         # 2. SFX LAYER (Regex Matching)
         # Scan the narrative text for action verbs
-        for pattern, sfx_file in self.sfx_triggers.items():
-            if re.search(pattern, narrative_text, re.IGNORECASE):
+        for pattern, sfx_file in self.sfx_triggers:
+            if pattern.search(narrative_text):
                 cues.append(AudioCue(type="sfx", resource_id=sfx_file))
 
         return cues
