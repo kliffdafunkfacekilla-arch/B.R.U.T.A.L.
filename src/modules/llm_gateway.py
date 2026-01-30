@@ -7,7 +7,7 @@ class LLMGateway:
         # Initialize OpenAI client
         self.client = OpenAI(api_key=api_key)
 
-    def generate_narrative(self, system_prompt: str, user_prompt: str) -> str:
+    async def generate_narrative(self, system_prompt: str, user_prompt: str) -> str:
         """
         Used for the Storyteller / Micro-Generator.
         Returns pure text for the TTS to read.
