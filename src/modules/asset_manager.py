@@ -1,6 +1,7 @@
 import hashlib
 import json
 import os
+import aiofiles
 import shutil
 import urllib.request
 from typing import Optional, Dict
@@ -36,7 +37,7 @@ class AssetCacheManager:
 
     # --- IMAGE HANDLING ---
 
-    def get_scene_image(self, room_id: str, prompt: str, generator_func) -> str:
+    async def get_scene_image(self, room_id: str, prompt: str, generator_func) -> str:
         """
         1. Check if Room ID has a saved image.
         2. If yes, return filepath.
@@ -55,6 +56,21 @@ class AssetCacheManager:
         print(f"[CACHE MISS] Generating new image for {room_id}...")
 
         # Call the expensive API
+        # image_url = await generator_func(prompt)
+        # For this example, we simulate a downloaded file path
+        filename = f"{room_id}_{prompt_hash[:8]}.png"
+        filepath = os.path.join(self.cache_dir, "images", filename)
+
+        # Simulate saving the image bytes to disk
+        async with aiofiles.open(filepath, 'wb') as f:
+            # await f.write(image_bytes)
+            pass
+
+        # Update Index
+        self.assets["images"][room_id] = filepath
+        self._save_index()
+
+        return filepath
         generated_content = generator_func(prompt)
 
         filename = f"{room_id}_{prompt_hash[:8]}.png"
@@ -107,7 +123,7 @@ class AssetCacheManager:
 
     # --- NPC HANDLING (The Consistency Engine) ---
 
-    def get_npc_assets(self, npc_id: str, description: str) -> Dict:
+    async def get_npc_assets(self, npc_id: str, description: str) -> Dict:
         """
         Ensures an NPC keeps their face and voice forever.
         """
