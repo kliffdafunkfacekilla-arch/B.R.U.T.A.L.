@@ -36,7 +36,8 @@ class AIDungeonMaster:
     """The Orchestrator that ties all sub-engines together."""
 
     def __init__(self):
-        self.api_key = os.getenv("GEMINI_API_KEY", "dummy_key")
+        # We now use OpenAI by default
+        self.api_key = os.getenv("OPENAI_API_KEY", "dummy_key")
 
         # Initialize sub-engines
         self.llm_gateway = LLMGateway(api_key=self.api_key)
