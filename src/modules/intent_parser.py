@@ -10,7 +10,7 @@ class IntentParser:
     def __init__(self, llm_client):
         self.llm = llm_client
 
-    def parse_input(self, user_text: str, valid_targets: list) -> Dict:
+    async def parse_input(self, user_text: str, valid_targets: list) -> Dict:
         """
         Input: "I wanna smash that goblin with my hammer."
         Output: {"action": "attack", "target": "goblin_sniper_01"}
@@ -30,7 +30,7 @@ class IntentParser:
         """
 
         # Call the LLM (Simulated here)
-        response_text = self.llm.generate_json(user_text, system_prompt)
+        response_text = await self.llm.generate_json(user_text, system_prompt)
 
         try:
             return json.loads(response_text)
