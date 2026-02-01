@@ -10,42 +10,30 @@ from openai import OpenAI
 class LLMGateway:
     def __init__(self, api_key: str):
         self.api_key = api_key
-        # If api_key is "dummy_key", we might want to default to environment variable
-        # or handle it gracefully. For now, we trust the caller.
-        self.client = OpenAI(api_key=self.api_key)
-        if self.api_key != "dummy_key":
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel("gemini-1.5-flash")
-        else:
-            self.model = None
-        # Initialize OpenAI client
-        self.client = OpenAI(api_key=api_key)
+
+        # Initialize Ollama Client (for Text/JSON)
+        # Assumes Ollama is running locally on default port
+        ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
+        self.llm_client = OpenAI(
+            base_url=ollama_base_url,
+            api_key="ollama" # Required but ignored by Ollama
+        )
+
+        # Initialize OpenAI Client (for Audio/TTS)
+        # We rely on OPENAI_API_KEY env var, or use the passed key if it looks like an OpenAI key
+        # For safety, let's prefer the Env var for the audio client
+        openai_key = os.getenv("OPENAI_API_KEY", api_key)
+        self.audio_client = OpenAI(api_key=openai_key)
 
     async def generate_narrative(self, system_prompt: str, user_prompt: str) -> str:
         """
         Used for the Storyteller / Micro-Generator.
         Returns pure text for the TTS to read.
         """
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini", # Cost-effective default
-        if self.model:
-            try:
-                # Gemini doesn't have system prompts in the same way as OpenAI, but we can prepend it
-                full_prompt = f"{system_prompt}\n\n{user_prompt}"
-                response = await self.model.generate_content_async(full_prompt)
-                return response.text
-            except Exception as e:
-                print(f"[LLM ERROR]: {e}")
-
-        print(f"\n[AI THOUGHTS]: Processing Narrative (Simulated)...")
-        return "Simulated Narrative: The goblin shrieks as your sword connects!"
-        # Call GPT-4 / Gemini Pro here
-        # response = await client.chat.completions.create(...)
         print(f"\n[AI THOUGHTS]: Processing Narrative...")
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
+            response = self.llm_client.chat.completions.create(
+                model="llama3:latest",
                 messages=[
                     {"role": "system", "content": system_prompt},
                     {"role": "user", "content": user_prompt}
@@ -60,7 +48,6 @@ class LLMGateway:
             return response.choices[0].message.content
         except Exception as e:
             print(f"Error in generate_narrative: {e}")
-            # Fallback for dev/test without key
             return "Simulated Narrative: The goblin shrieks as your sword connects!"
 
     async def generate_json(self, user_text: str, schema_prompt: str) -> str:
@@ -108,8 +95,8 @@ class LLMGateway:
         return '{"action": "attack", "target": "goblin_01"}'
         print(f"\n[AI THOUGHTS]: Parsing Intent...")
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
+            response = self.llm_client.chat.completions.create(
+                model="qwen2.5:latest",
                 response_format={"type": "json_object"},
                 messages=[
                     {"role": "system", "content": f"You are a helpful assistant designed to output JSON. {schema_prompt}"},
@@ -124,7 +111,7 @@ class LLMGateway:
     def speech_to_text(self, audio_file) -> str:
         """Integration for Whisper API"""
         try:
-            response = self.client.audio.transcriptions.create(
+            response = self.audio_client.audio.transcriptions.create(
                 model="whisper-1",
                 file=audio_file
             )
@@ -137,7 +124,7 @@ class LLMGateway:
         """Integration for ElevenLabs / OpenAI TTS"""
         print(f"🔊 [TTS GENERATING]: {text_content}")
         try:
-            response = self.client.audio.speech.create(
+            response = self.audio_client.audio.speech.create(
                 model="tts-1",
                 voice="alloy",
                 input=text_content
