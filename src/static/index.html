@@ -1,0 +1,27 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Infinite Dungeon Master</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+    <div id="container">
+        <h1>Infinite Dungeon Master</h1>
+        <div id="setup-panel">
+            <input type="text" id="campaign-type" placeholder="Enter campaign theme (e.g., Dark Fantasy Crypt)" value="Dark Fantasy Crypt">
+            <button onclick="startSession()">Start Adventure</button>
+        </div>
+
+        <div id="game-panel" style="display:none;">
+            <div id="chat-log"></div>
+            <div id="input-area">
+                <input type="text" id="user-input" placeholder="What do you do?">
+                <button onclick="sendAction()">Act</button>
+            </div>
+        </div>
+    </div>
+    <script src="/static/app.js"></script>
+</body>
+</html>

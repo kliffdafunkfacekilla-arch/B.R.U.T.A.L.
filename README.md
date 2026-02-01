@@ -28,6 +28,19 @@ Start the FastAPI server:
 uvicorn src.api.server:app --reload
 ```
 
+*   **Web Interface**: Open `http://localhost:8000` to play the game.
+*   **API Status**: Check `http://localhost:8000/health`.
+*   **API Docs**: Open `http://localhost:8000/docs` for Swagger UI.
+
+### Configuration
+
+To enable real AI generation:
+1.  Obtain a Google Gemini API Key.
+2.  Set the environment variable:
+    ```bash
+    export GEMINI_API_KEY="your_api_key_here"
+    ```
+    If not set, the system falls back to a simulated mode for testing.
 The API will be available at `http://localhost:8000`.
 API Documentation (Swagger UI) is available at `http://localhost:8000/docs`.
 
@@ -60,6 +73,9 @@ python -m pytest tests
 *   `src/core`: Core engines (Game Loop, Table Logic, Persistence).
 *   `src/models`: Pydantic data models (Dungeon, Party).
 *   `src/modules`: AI and Logic modules (Intent Parser, LLM Gateway, etc.).
+*   `src/static`: Frontend HTML/JS/CSS.
+*   `data/game_assets`: Generated assets (Images, Audio).
+*   `data/sessions`: Saved session states.
 *   `data/game_assets`: Generated assets (Images, Audio).
 *   `data/sessions`: Saved session states.
 

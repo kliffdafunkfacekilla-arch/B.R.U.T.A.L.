@@ -3,6 +3,8 @@ import json
 import random
 from typing import List, Optional, Dict
 from fastapi import FastAPI, HTTPException, Body
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 # Imports from our modules
@@ -16,6 +18,9 @@ from src.modules.macro_generator import MacroGenerator
 from src.core import persistence
 
 app = FastAPI(title="Infinite Dungeon Master API")
+
+# Mount static files (Frontend)
+app.mount("/static", StaticFiles(directory="src/static"), name="static")
 
 # --- DATA MODELS FOR API ---
 
@@ -158,13 +163,16 @@ class AIDungeonMaster:
 
 dm_engine = AIDungeonMaster()
 
+@app.get("/health")
+async def health():
+    return {"status": "AI Dungeon Master is online"}
 @app.on_event("startup")
 async def startup_event():
     await dm_engine.cache.load_index()
 
 @app.get("/")
 async def root():
-    return {"status": "AI Dungeon Master is online"}
+    return FileResponse("src/static/index.html")
 
 @app.post("/session/start")
 async def start_session(campaign_type: str = Body(..., embed=True)):
