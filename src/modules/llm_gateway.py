@@ -1,3 +1,5 @@
+from openai import OpenAI
+import os
 # This is a stub. In production, use 'openai' or 'google-generativeai' libraries.
 import google.generativeai as genai
 import os
@@ -56,11 +58,46 @@ class LLMGateway:
         print(f"\n[AI THOUGHTS]: Parsing Intent (Simulated)...")
         # Simulating a return for the 'attack' example
         return '{"action": "attack", "target": "goblin_01"}'
+        print(f"\n[AI THOUGHTS]: Parsing Intent...")
+        try:
+            response = self.llm_client.chat.completions.create(
+                model="qwen2.5:latest",
+                response_format={"type": "json_object"},
+                messages=[
+                    {"role": "system", "content": f"You are a helpful assistant designed to output JSON. {schema_prompt}"},
+                    {"role": "user", "content": user_text}
+                ]
+            )
+            return response.choices[0].message.content
+        except Exception as e:
+            print(f"Error in generate_json: {e}")
+            return '{"action": "attack", "target": "goblin_01"}'
 
     def speech_to_text(self, audio_file) -> str:
         """Integration for Whisper API"""
-        return "I attack the goblin."
+        try:
+            response = self.audio_client.audio.transcriptions.create(
+                model="whisper-1",
+                file=audio_file
+            )
+            return response.text
+        except Exception as e:
+            print(f"Error in speech_to_text: {e}")
+            return "I attack the goblin."
 
     def text_to_speech(self, text_content: str):
         """Integration for ElevenLabs / OpenAI TTS"""
-        print(f"🔊 [TTS PLAYING]: {text_content}")
+        print(f"🔊 [TTS GENERATING]: {text_content}")
+        try:
+            response = self.audio_client.audio.speech.create(
+                model="tts-1",
+                voice="alloy",
+                input=text_content
+            )
+            output_path = "output_tts.mp3"
+            response.stream_to_file(output_path)
+            print(f"🔊 [TTS SAVED]: {output_path}")
+            return output_path
+        except Exception as e:
+            print(f"Error in text_to_speech: {e}")
+            print(f"🔊 [TTS PLAYING (SIMULATED)]: {text_content}")

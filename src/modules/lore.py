@@ -1,5 +1,6 @@
 from typing import List, Dict, Optional
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, PrivateAttr
+from src.core.vector_db import LoreVectorDB
 
 # --- 1. THE KNOWLEDGE ATOMS ---
 
@@ -30,13 +31,36 @@ class WorldBible(BaseModel):
     global_lore: List[LoreFragment]
     factions: Dict[str, str] # {"Cult of Worms": "Wants to eat the sun"}
 
+    _vector_db: Optional[LoreVectorDB] = PrivateAttr(default=None)
+
     # This vector index is conceptual; in prod use ChromaDB/Pinecone
     def query_lore(self, query_tags: List[str]) -> List[LoreFragment]:
         """The 'Librarian': Finds lore relevant to specific tags."""
+        # Initialize Vector DB if not already done (Lazy Loading)
+        if self._vector_db is None:
+            self._vector_db = LoreVectorDB()
+            # Index the lore fragments
+            self._vector_db.index_lore(self.global_lore)
+
+        # Construct query from tags
+        query_text = " ".join(query_tags)
+
+        # Perform semantic search
+        relevant_ids = self._vector_db.search(query_text)
+
+        # Retrieve the actual fragment objects
+        # Optimization: Map IDs to fragments for quick lookup
+        lore_map = {f.id: f for f in self.global_lore}
+
         relevant_chunks = []
+        for rid in relevant_ids:
+            if rid in lore_map:
+                relevant_chunks.append(lore_map[rid])
+
+        query_tags_set = set(query_tags)
         for fragment in self.global_lore:
             # Simple intersection logic (in prod, use semantic search)
-            if any(tag in query_tags for tag in fragment.tags):
+            if any(tag in query_tags_set for tag in fragment.tags):
                 relevant_chunks.append(fragment)
         return relevant_chunks
 
