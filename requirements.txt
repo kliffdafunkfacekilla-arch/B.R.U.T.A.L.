@@ -8,3 +8,4 @@ aiofiles
 chromadb
 sentence-transformers
 openai
+google-generativeai

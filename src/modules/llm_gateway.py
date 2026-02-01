@@ -1,29 +1,38 @@
 import os
 from openai import OpenAI
+import google.generativeai as genai
 
 class LLMGateway:
     def __init__(self, api_key: str):
         self.api_key = api_key
+
+        # Configure Gemini
+        try:
+            genai.configure(api_key=self.api_key)
+        except Exception as e:
+            print(f"Error configuring Gemini: {e}")
+
         # Initialize OpenAI client
-        self.client = OpenAI(api_key=api_key)
+        # We rely on OPENAI_API_KEY env var, or fallback to a dummy key.
+        # We do NOT use the passed api_key as it is intended for Gemini (per server.py).
+        openai_key = os.getenv("OPENAI_API_KEY", "missing_openai_key")
+        self.client = OpenAI(api_key=openai_key)
 
     async def generate_narrative(self, system_prompt: str, user_prompt: str) -> str:
         """
         Used for the Storyteller / Micro-Generator.
         Returns pure text for the TTS to read.
         """
-        # Call GPT-4 / Gemini Pro here
-        # response = await client.chat.completions.create(...)
         print(f"\n[AI THOUGHTS]: Processing Narrative...")
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ]
+            # Initialize model with system instruction
+            model = genai.GenerativeModel(
+                "gemini-1.5-flash",
+                system_instruction=system_prompt
             )
-            return response.choices[0].message.content
+
+            response = await model.generate_content_async(user_prompt)
+            return response.text
         except Exception as e:
             print(f"Error in generate_narrative: {e}")
             # Fallback for dev/test without key
@@ -36,15 +45,15 @@ class LLMGateway:
         """
         print(f"\n[AI THOUGHTS]: Parsing Intent...")
         try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o",
-                response_format={"type": "json_object"},
-                messages=[
-                    {"role": "system", "content": f"You are a helpful assistant designed to output JSON. {schema_prompt}"},
-                    {"role": "user", "content": user_text}
-                ]
+            # Initialize model with JSON mode and system instruction
+            model = genai.GenerativeModel(
+                "gemini-1.5-flash",
+                system_instruction=f"You are a helpful assistant designed to output JSON. {schema_prompt}",
+                generation_config={"response_mime_type": "application/json"}
             )
-            return response.choices[0].message.content
+
+            response = await model.generate_content_async(user_text)
+            return response.text
         except Exception as e:
             print(f"Error in generate_json: {e}")
             return '{"action": "attack", "target": "goblin_01"}'
