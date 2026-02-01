@@ -28,41 +28,50 @@ class AtmosphereProfile(BaseModel):
 class WorldBible(BaseModel):
     """The Master Encyclopedia (Macro Layer)."""
     world_name: str
-    global_lore: List[LoreFragment]
     factions: Dict[str, str] # {"Cult of Worms": "Wants to eat the sun"}
+
+    # Store global_lore temporarily for ingestion, but clear it to save memory.
+    global_lore: List[LoreFragment] = Field(default_factory=list)
+
+    # Path for vector DB persistence
+    db_path: Optional[str] = "./data/vector_store"
 
     _vector_db: Optional[LoreVectorDB] = PrivateAttr(default=None)
 
-    # This vector index is conceptual; in prod use ChromaDB/Pinecone
     def query_lore(self, query_tags: List[str]) -> List[LoreFragment]:
         """The 'Librarian': Finds lore relevant to specific tags."""
         # Initialize Vector DB if not already done (Lazy Loading)
         if self._vector_db is None:
-            self._vector_db = LoreVectorDB()
-            # Index the lore fragments
-            self._vector_db.index_lore(self.global_lore)
+            self._vector_db = LoreVectorDB(persistence_path=self.db_path)
+            # Index the lore fragments if we have pending ones
+            if self.global_lore:
+                self._vector_db.index_lore(self.global_lore)
+                # Clear memory after indexing
+                self.global_lore = []
 
         # Construct query from tags
         query_text = " ".join(query_tags)
 
         # Perform semantic search
-        relevant_ids = self._vector_db.search(query_text)
-
-        # Retrieve the actual fragment objects
-        # Optimization: Map IDs to fragments for quick lookup
-        lore_map = {f.id: f for f in self.global_lore}
+        # Now returns list of dicts (parsed JSON)
+        results = self._vector_db.search(query_text)
 
         relevant_chunks = []
-        for rid in relevant_ids:
-            if rid in lore_map:
-                relevant_chunks.append(lore_map[rid])
-
-        query_tags_set = set(query_tags)
-        for fragment in self.global_lore:
-            # Simple intersection logic (in prod, use semantic search)
-            if any(tag in query_tags_set for tag in fragment.tags):
+        for res_dict in results:
+            try:
+                # Convert back to LoreFragment
+                fragment = LoreFragment.model_validate(res_dict)
                 relevant_chunks.append(fragment)
+            except Exception as e:
+                print(f"Error parsing lore fragment: {e}")
+
         return relevant_chunks
+
+    def ingest_lore(self, fragments: List[LoreFragment]):
+        """Manually ingest new lore into the database."""
+        if self._vector_db is None:
+             self._vector_db = LoreVectorDB(persistence_path=self.db_path)
+        self._vector_db.index_lore(fragments)
 
 class SessionContext(BaseModel):
     """The 'Cheat Sheet' attached to the Session JSON (Meso Layer).
