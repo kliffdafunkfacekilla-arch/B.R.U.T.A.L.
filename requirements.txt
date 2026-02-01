@@ -1,4 +1,14 @@
 fastapi
 uvicorn
 pydantic
+pytest
+httpx
+aiofiles
+google-generativeai
+aiofiles
+pytest
+httpx
+aiofiles
+chromadb
+sentence-transformers
 openai
