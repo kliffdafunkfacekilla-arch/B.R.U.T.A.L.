@@ -3,6 +3,8 @@ import json
 import random
 from typing import List, Optional, Dict
 from fastapi import FastAPI, HTTPException, Body
+from fastapi.staticfiles import StaticFiles
+from fastapi.responses import FileResponse
 from pydantic import BaseModel
 
 # Imports from our modules
@@ -12,8 +14,13 @@ from src.modules.lore import WorldBible, hydrate_session_with_lore, LoreFragment
 from src.modules.media import MediaDirector, SceneState
 from src.modules.asset_manager import AssetCacheManager
 from src.modules.llm_gateway import LLMGateway
+from src.modules.macro_generator import MacroGenerator
+from src.core import persistence
 
 app = FastAPI(title="Infinite Dungeon Master API")
+
+# Mount static files (Frontend)
+app.mount("/static", StaticFiles(directory="src/static"), name="static")
 
 # --- DATA MODELS FOR API ---
 
@@ -57,6 +64,7 @@ class AIDungeonMaster:
 
         self.director = MediaDirector()
         self.cache = AssetCacheManager()
+        self.macro_generator = MacroGenerator()
 
     async def run_interaction_cycle(self, request: InteractionRequest):
         """
@@ -68,10 +76,27 @@ class AIDungeonMaster:
         5. Media Cue Extraction
         """
 
+        # LOAD SESSION
+        try:
+            session = await persistence.load_session(request.session_id)
+        except Exception:
+            # Fallback for testing if session doesn't exist on disk
+            # In production, this should raise 404
+            print(f"Session {request.session_id} not found, proceeding with mock.")
+            session = None
+
         # STEP 1: PARSE INTENT (NLU)
         # We need a list of valid targets from the current state (mocked here)
         valid_targets = ["goblin_01", "door"]
-        intent_data = self.intent_parser.parse_input(request.input_text, valid_targets=valid_targets)
+        if session:
+            # Get targets from current room (assuming room_01 for now or track it)
+            # For simplicity, let's say we are in room_01 if not specified
+            current_room_id = "room_01" # TODO: Track current room in session
+            if current_room_id in session.rooms:
+                room = session.rooms[current_room_id]
+                valid_targets = [e.name for e in room.entities] + list(room.exits.keys()) + ["self"]
+
+        intent_data = await self.intent_parser.parse_input(request.input_text, valid_targets=valid_targets)
         intent = intent_data.get("action", "explore")
 
         # STEP 2: RULE RESOLUTION
@@ -103,7 +128,7 @@ class AIDungeonMaster:
         Write a 2-sentence immersive DM response.
         """
 
-        narrative = self.llm_gateway.generate_narrative("You are a DM", prompt)
+        narrative = await self.llm_gateway.generate_narrative("You are a DM", prompt)
 
         # STEP 5: MEDIA DIRECTOR (Cues)
         # Mocking SceneState
@@ -118,8 +143,14 @@ class AIDungeonMaster:
         visual_cue = self.director.construct_image_prompt(narrative, scene_state)
 
         # Convert Pydantic models to dicts for API response
-        audio_cues_dicts = [cue.dict() for cue in audio_cues]
-        visual_cue_dict = visual_cue.dict()
+        audio_cues_dicts = [cue.model_dump() for cue in audio_cues]
+        visual_cue_dict = visual_cue.model_dump()
+
+        # SAVE SESSION (if loaded)
+        if session:
+            # Here we would update the session state based on logic_result
+            # For now, just saving to prove persistence works
+            await persistence.save_session(session)
 
         return {
             "narrative": narrative,
@@ -133,17 +164,32 @@ class AIDungeonMaster:
 
 dm_engine = AIDungeonMaster()
 
+@app.get("/health")
+async def health():
+    return {"status": "AI Dungeon Master is online"}
+@app.on_event("startup")
+async def startup_event():
+    await dm_engine.cache.load_index()
+
 @app.get("/")
 async def root():
-    return {"status": "AI Dungeon Master is online"}
+    return FileResponse("src/static/index.html")
 
 @app.post("/session/start")
 async def start_session(campaign_type: str = Body(..., embed=True)):
     """Initializes a new campaign and generates the Macro-Story."""
     # Run Macro-Generator logic
+    session = await dm_engine.macro_generator.generate_session(campaign_id="camp_001", prompt=campaign_type)
+
+    # Save the session
+    await persistence.save_session(session)
+
+    # Generate intro narrative using the first room
+    first_room = session.rooms["room_01"]
+
     return {
-        "session_id": "sess_999",
-        "intro_narrative": f"You find yourself in a {campaign_type} world. The journey begins...",
+        "session_id": session.session_id,
+        "intro_narrative": f"You find yourself in a {campaign_type} world. {first_room.description_initial}",
         "party_state": {"members": []}
     }
 

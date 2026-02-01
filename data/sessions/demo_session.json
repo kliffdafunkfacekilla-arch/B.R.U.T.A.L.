@@ -1,0 +1,38 @@
+{
+  "session_id": "demo_session",
+  "location_name": "Starter Dungeon",
+  "dungeon_level": 1,
+  "rooms": {
+    "room_01": {
+      "id": "room_01",
+      "title": "Damp Crypt",
+      "type": "chamber",
+      "description_initial": "A cold, damp crypt.",
+      "description_cleared": "A cold, damp crypt, now silent.",
+      "is_visited": false,
+      "is_locked": false,
+      "key_required_id": null,
+      "entities": [
+        {
+          "name": "goblin_01",
+          "hp_current": 10,
+          "hp_max": 10,
+          "ac": 12,
+          "attacks": [
+            {
+              "name": "Scimitar",
+              "dmg": "1d6+2"
+            }
+          ],
+          "is_hostile": true
+        }
+      ],
+      "loot": [],
+      "exits": {
+        "north": "room_02"
+      }
+    }
+  },
+  "turn_counter": 0,
+  "alert_level": 0
+}
