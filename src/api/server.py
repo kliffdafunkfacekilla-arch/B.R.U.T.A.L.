@@ -166,6 +166,9 @@ dm_engine = AIDungeonMaster()
 @app.get("/health")
 async def health():
     return {"status": "AI Dungeon Master is online"}
+@app.on_event("startup")
+async def startup_event():
+    await dm_engine.cache.load_index()
 
 @app.get("/")
 async def root():

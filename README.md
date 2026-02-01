@@ -41,6 +41,23 @@ To enable real AI generation:
     export GEMINI_API_KEY="your_api_key_here"
     ```
     If not set, the system falls back to a simulated mode for testing.
+The API will be available at `http://localhost:8000`.
+API Documentation (Swagger UI) is available at `http://localhost:8000/docs`.
+
+### Key Endpoints
+
+*   `POST /session/start`: Initialize a new session.
+    *   Body: `{"campaign_type": "dark fantasy"}`
+*   `POST /interact`: Interact with the DM.
+    *   Body:
+        ```json
+        {
+          "user_id": "user1",
+          "character_id": "char1",
+          "input_text": "I open the door",
+          "session_id": "sess_..."
+        }
+        ```
 
 ## Testing
 
@@ -59,3 +76,9 @@ python -m pytest tests
 *   `src/static`: Frontend HTML/JS/CSS.
 *   `data/game_assets`: Generated assets (Images, Audio).
 *   `data/sessions`: Saved session states.
+*   `data/game_assets`: Generated assets (Images, Audio).
+*   `data/sessions`: Saved session states.
+
+## Configuration
+
+*   Set `GEMINI_API_KEY` environment variable to use the real LLM (future feature). Currently uses a simulated LLM.

@@ -14,3 +14,4 @@ venv.bak/
 *.swp
 data/game_assets/images/
 data/game_assets/audio/
+data/vector_store/
