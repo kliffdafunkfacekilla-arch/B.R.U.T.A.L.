@@ -9,10 +9,6 @@ def test_ui_root(client):
     response = client.get("/")
     assert response.status_code == 200
     assert "<!DOCTYPE html>" in response.text
-def test_root(client):
-    response = client.get("/")
-    assert response.status_code == 200
-    assert response.json() == {"status": "AI Dungeon Master is online"}
 
 def test_start_session(client):
     response = client.post("/session/start", json={"campaign_type": "dark fantasy"})

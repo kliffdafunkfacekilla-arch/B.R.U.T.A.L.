@@ -2,10 +2,11 @@ import os
 import json
 import random
 from typing import List, Optional, Dict
-from fastapi import FastAPI, HTTPException, Body
+from fastapi import FastAPI, HTTPException, Body, Request
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, JSONResponse
 from pydantic import BaseModel
+import traceback
 
 # Imports from our modules
 from src.modules.intent_parser import IntentParser
@@ -18,6 +19,17 @@ from src.modules.macro_generator import MacroGenerator
 from src.core import persistence
 
 app = FastAPI(title="Infinite Dungeon Master API")
+
+# Global Exception Handler
+@app.exception_handler(Exception)
+async def global_exception_handler(request: Request, exc: Exception):
+    error_msg = f"Internal Server Error: {str(exc)}"
+    print(f"ERROR at {request.url}: {error_msg}")
+    traceback.print_exc()
+    return JSONResponse(
+        status_code=500,
+        content={"message": error_msg, "detail": "Check server logs for trace"}
+    )
 
 # Mount static files (Frontend)
 app.mount("/static", StaticFiles(directory="src/static"), name="static")
@@ -167,9 +179,6 @@ dm_engine = AIDungeonMaster()
 @app.get("/health")
 async def health():
     return {"status": "AI Dungeon Master is online"}
-@app.on_event("startup")
-async def startup_event():
-    await dm_engine.cache.load_index()
 
 @app.get("/")
 async def root():

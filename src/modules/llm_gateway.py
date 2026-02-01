@@ -4,77 +4,39 @@ import os
 import google.generativeai as genai
 import os
 import json
-import os
-from openai import OpenAI
 
 class LLMGateway:
     def __init__(self, api_key: str):
         self.api_key = api_key
-
-        # Initialize Ollama Client (for Text/JSON)
-        # Assumes Ollama is running locally on default port
-        ollama_base_url = os.getenv("OLLAMA_BASE_URL", "http://localhost:11434/v1")
-        self.llm_client = OpenAI(
-            base_url=ollama_base_url,
-            api_key="ollama" # Required but ignored by Ollama
-        )
-
-        # Initialize OpenAI Client (for Audio/TTS)
-        # We rely on OPENAI_API_KEY env var, or use the passed key if it looks like an OpenAI key
-        # For safety, let's prefer the Env var for the audio client
-        openai_key = os.getenv("OPENAI_API_KEY", api_key)
-        self.audio_client = OpenAI(api_key=openai_key)
+        if self.api_key != "dummy_key":
+            genai.configure(api_key=self.api_key)
+            self.model = genai.GenerativeModel("gemini-1.5-flash")
+        else:
+            self.model = None
 
     async def generate_narrative(self, system_prompt: str, user_prompt: str) -> str:
         """
         Used for the Storyteller / Micro-Generator.
         Returns pure text for the TTS to read.
         """
-        print(f"\n[AI THOUGHTS]: Processing Narrative...")
-        try:
-            response = self.llm_client.chat.completions.create(
-                model="llama3:latest",
-                messages=[
-                    {"role": "system", "content": system_prompt},
-                    {"role": "user", "content": user_prompt}
-                ]
-            )
-            content = response.choices[0].message.content
-            print(f"\n[AI THOUGHTS]: Processing Narrative...")
-            return content if content else ""
-        except Exception as e:
-            print(f"Error generating narrative: {e}")
-            return "The mists of uncertainty cloud the vision. (AI Error)"
-            return response.choices[0].message.content
-        except Exception as e:
-            print(f"Error in generate_narrative: {e}")
-            return "Simulated Narrative: The goblin shrieks as your sword connects!"
+        if self.model:
+            try:
+                # Gemini doesn't have system prompts in the same way as OpenAI, but we can prepend it
+                full_prompt = f"{system_prompt}\n\n{user_prompt}"
+                response = await self.model.generate_content_async(full_prompt)
+                return response.text
+            except Exception as e:
+                print(f"[LLM ERROR]: {e}")
+                # Fallthrough to simulated response
+
+        print(f"\n[AI THOUGHTS]: Processing Narrative (Simulated)...")
+        return "Simulated Narrative: The goblin shrieks as your sword connects!"
 
     async def generate_json(self, user_text: str, schema_prompt: str) -> str:
         """
         Used for the Intent Parser and Macro-Generator.
         Forces the model to output valid JSON.
         """
-        try:
-            response = self.client.chat.completions.create(
-                model="gpt-4o-mini",
-                messages=[
-                    {"role": "system", "content": schema_prompt},
-                    {"role": "user", "content": user_text}
-                ],
-                response_format={"type": "json_object"}
-            )
-            content = response.choices[0].message.content
-            print(f"\n[AI THOUGHTS]: Parsing Intent...")
-            return content if content else "{}"
-        except Exception as e:
-            print(f"Error generating JSON: {e}")
-            return '{"action": "meta", "content": "AI Error"}'
-
-    def speech_to_text(self, audio_file) -> str:
-        """Integration for Whisper API"""
-        # Placeholder: Implementing this would require handling file uploads/paths
-        raise NotImplementedError("Speech to text not yet implemented.")
         if self.model:
             try:
                 # Force JSON output via prompting
@@ -84,11 +46,14 @@ class LLMGateway:
                 # cleanup markdown code blocks if present
                 if text.startswith("```json"):
                     text = text[7:]
+                if text.startswith("```"): # handle case where lang is not specified
+                    text = text[3:]
                 if text.endswith("```"):
                     text = text[:-3]
                 return text.strip()
             except Exception as e:
                 print(f"[LLM ERROR]: {e}")
+                # Fallthrough to simulated response
 
         print(f"\n[AI THOUGHTS]: Parsing Intent (Simulated)...")
         # Simulating a return for the 'attack' example

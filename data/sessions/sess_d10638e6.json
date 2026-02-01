@@ -1,0 +1,76 @@
+{
+  "session_id": "sess_d10638e6",
+  "location_name": "Generated Crypt",
+  "dungeon_level": 1,
+  "rooms": {
+    "room_01": {
+      "id": "room_01",
+      "title": "Entrance",
+      "type": "safe_haven",
+      "description_initial": "You stand at the entrance.",
+      "description_cleared": "The entrance is quiet.",
+      "is_visited": false,
+      "is_locked": false,
+      "key_required_id": null,
+      "entities": [],
+      "loot": [],
+      "exits": {
+        "north": "room_02"
+      }
+    },
+    "room_02": {
+      "id": "room_02",
+      "title": "Dark Hallway",
+      "type": "corridor",
+      "description_initial": "A long, dark hallway stretches ahead.",
+      "description_cleared": "The hallway is empty.",
+      "is_visited": false,
+      "is_locked": false,
+      "key_required_id": null,
+      "entities": [
+        {
+          "name": "Ghoul",
+          "hp_current": 22,
+          "hp_max": 22,
+          "ac": 12,
+          "attacks": [
+            {
+              "name": "Claws",
+              "dmg": "2d4+2"
+            }
+          ],
+          "is_hostile": true
+        }
+      ],
+      "loot": [],
+      "exits": {
+        "south": "room_01",
+        "north": "room_03"
+      }
+    },
+    "room_03": {
+      "id": "room_03",
+      "title": "Main Chamber",
+      "type": "chamber",
+      "description_initial": "A large chamber with high ceilings.",
+      "description_cleared": "The chamber is silent, dust settling.",
+      "is_visited": false,
+      "is_locked": false,
+      "key_required_id": null,
+      "entities": [],
+      "loot": [
+        {
+          "name": "Potion of Healing",
+          "value_gp": 25,
+          "description": "A red liquid.",
+          "is_magical": true
+        }
+      ],
+      "exits": {
+        "south": "room_02"
+      }
+    }
+  },
+  "turn_counter": 0,
+  "alert_level": 0
+}

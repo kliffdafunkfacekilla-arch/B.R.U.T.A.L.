@@ -1,14 +1,19 @@
 import aiofiles
 import json
 import os
+import asyncio
 from typing import Dict, Optional
 from src.models.dungeon import SessionModule
+
+# Global lock for simple concurrency safety
+_io_lock = asyncio.Lock()
 
 async def save_json(filepath: str, data: Dict):
     """Saves a dictionary to a JSON file asynchronously."""
     os.makedirs(os.path.dirname(filepath), exist_ok=True)
-    async with aiofiles.open(filepath, 'w') as f:
-        await f.write(json.dumps(data, indent=2))
+    async with _io_lock:
+        async with aiofiles.open(filepath, 'w') as f:
+            await f.write(json.dumps(data, indent=2))
 
 async def load_json(filepath: str) -> Dict:
     """Loads a JSON file asynchronously."""
