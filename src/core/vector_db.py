@@ -1,5 +1,6 @@
 import os
-from typing import List, Any, Dict
+import json
+from typing import List, Any, Optional, Dict
 import chromadb
 from chromadb.utils import embedding_functions
 
@@ -7,14 +8,17 @@ class LoreVectorDB:
     """
     Manages the vector database for lore fragments using ChromaDB and Sentence Transformers.
     """
-    def __init__(self, persistence_path: str = "./data/vector_store", collection_name: str = "lore"):
+    def __init__(self, persistence_path: Optional[str] = "./data/vector_store", collection_name: str = "lore"):
         """
         Initialize the ChromaDB client and collection.
+        If persistence_path is None, use in-memory client.
         """
-        # Ensure the directory exists
-        os.makedirs(persistence_path, exist_ok=True)
-
-        self.client = chromadb.PersistentClient(path=persistence_path)
+        if persistence_path:
+            # Ensure the directory exists
+            os.makedirs(persistence_path, exist_ok=True)
+            self.client = chromadb.PersistentClient(path=persistence_path)
+        else:
+            self.client = chromadb.Client()
 
         # Use a lightweight, effective model for embeddings
         self.embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
@@ -30,14 +34,13 @@ class LoreVectorDB:
         """
         Upsert lore fragments into the vector database.
         Expects objects with 'id', 'content', 'category', and 'tags' attributes.
+        Stores the full object as JSON in metadata.
         """
         ids = []
         documents = []
         metadatas = []
 
         for fragment in fragments:
-            # Handle both Pydantic models and dicts if necessary,
-            # but assuming Pydantic models based on usage.
             f_id = getattr(fragment, "id", None)
             f_content = getattr(fragment, "content", "")
             f_category = getattr(fragment, "category", "general")
@@ -52,9 +55,28 @@ class LoreVectorDB:
             text_content = f"{f_content} | Tags: {', '.join(f_tags)}"
             documents.append(text_content)
 
+            # Serialize the full fragment
+            if hasattr(fragment, "model_dump_json"):
+                json_str = fragment.model_dump_json()
+            else:
+                # Fallback if it's a dict or other object
+                try:
+                    # If it's a dict, use it directly
+                    if isinstance(fragment, dict):
+                         json_str = json.dumps(fragment)
+                    else:
+                        # Best effort: dump what we know
+                        json_str = json.dumps({
+                            "id": f_id, "content": f_content,
+                            "category": f_category, "tags": f_tags
+                        })
+                except:
+                     json_str = "{}"
+
             metadatas.append({
                 "category": f_category,
-                "tags": ",".join(f_tags)
+                "tags": ",".join(f_tags),
+                "json_data": json_str
             })
 
         if ids:
@@ -64,12 +86,11 @@ class LoreVectorDB:
                 metadatas=metadatas
             )
 
-    def search(self, query: str, n_results: int = 5) -> List[str]:
+    def search(self, query: str, n_results: int = 5) -> List[Dict]:
         """
         Search for relevant lore fragments by semantic similarity.
-        Returns a list of fragment IDs.
+        Returns a list of dicts (parsed from stored JSON).
         """
-        # Handle case where collection is empty or small
         count = self.collection.count()
         if count == 0:
             return []
@@ -81,19 +102,25 @@ class LoreVectorDB:
             n_results=n_results
         )
 
-        # results['ids'] is a list of lists (one per query)
-        if results and results['ids']:
-            return results['ids'][0]
+        found_fragments = []
+        # results['metadatas'] is a list of lists (one per query)
+        if results and results['metadatas']:
+            metas_list = results['metadatas'][0]
+            for meta in metas_list:
+                json_data = meta.get("json_data")
+                if json_data:
+                    try:
+                        obj = json.loads(json_data)
+                        found_fragments.append(obj)
+                    except:
+                        pass
 
-        return []
+        return found_fragments
 
     def reset(self):
         """
         Clears the collection. Useful for testing or re-indexing.
         """
-        # ChromaDB doesn't have a direct clear, so we delete and recreate or delete items.
-        # But for this scope, let's just delete all items if we can list them,
-        # or easier: delete the collection and recreate.
         self.client.delete_collection(self.collection.name)
         self.collection = self.client.get_or_create_collection(
             name=self.collection.name,
