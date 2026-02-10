@@ -1,8 +1,15 @@
 import os
 import json
 from typing import List, Any, Optional, Dict
-import chromadb
-from chromadb.utils import embedding_functions
+
+# Try to import chromadb, mock if not available
+try:
+    import chromadb
+    from chromadb.utils import embedding_functions
+    HAS_CHROMA = True
+except ImportError:
+    HAS_CHROMA = False
+    print("Warning: chromadb not found. Using mock vector DB.")
 
 class LoreVectorDB:
     """
@@ -13,22 +20,27 @@ class LoreVectorDB:
         Initialize the ChromaDB client and collection.
         If persistence_path is None, use in-memory client.
         """
-        if persistence_path:
-            # Ensure the directory exists
-            os.makedirs(persistence_path, exist_ok=True)
-            self.client = chromadb.PersistentClient(path=persistence_path)
+        if HAS_CHROMA:
+            if persistence_path:
+                # Ensure the directory exists
+                os.makedirs(persistence_path, exist_ok=True)
+                self.client = chromadb.PersistentClient(path=persistence_path)
+            else:
+                self.client = chromadb.Client()
+
+            # Use a lightweight, effective model for embeddings
+            self.embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
+                model_name="all-MiniLM-L6-v2"
+            )
+
+            self.collection = self.client.get_or_create_collection(
+                name=collection_name,
+                embedding_function=self.embedding_fn
+            )
         else:
-            self.client = chromadb.Client()
-
-        # Use a lightweight, effective model for embeddings
-        self.embedding_fn = embedding_functions.SentenceTransformerEmbeddingFunction(
-            model_name="all-MiniLM-L6-v2"
-        )
-
-        self.collection = self.client.get_or_create_collection(
-            name=collection_name,
-            embedding_function=self.embedding_fn
-        )
+            self.client = None
+            self.collection = None
+            self.fragments = []
 
     def index_lore(self, fragments: List[Any]):
         """
@@ -36,6 +48,11 @@ class LoreVectorDB:
         Expects objects with 'id', 'content', 'category', and 'tags' attributes.
         Stores the full object as JSON in metadata.
         """
+        if not HAS_CHROMA:
+            # Simple mock storage
+            self.fragments.extend(fragments)
+            return
+
         ids = []
         documents = []
         metadatas = []
@@ -91,6 +108,21 @@ class LoreVectorDB:
         Search for relevant lore fragments by semantic similarity.
         Returns a list of dicts (parsed from stored JSON).
         """
+        if not HAS_CHROMA:
+            # Mock search: simple string matching
+            results = []
+            for f in self.fragments:
+                content = getattr(f, "content", "")
+                tags = getattr(f, "tags", [])
+                if query.lower() in content.lower() or any(t in query.lower() for t in tags):
+                     # Serialize to dict as expected by the caller
+                     if isinstance(f, dict):
+                         results.append(f)
+                     else:
+                         # Assume pydantic model
+                         results.append(f.model_dump())
+            return results[:n_results]
+
         count = self.collection.count()
         if count == 0:
             return []
@@ -121,6 +153,10 @@ class LoreVectorDB:
         """
         Clears the collection. Useful for testing or re-indexing.
         """
+        if not HAS_CHROMA:
+            self.fragments = []
+            return
+
         self.client.delete_collection(self.collection.name)
         self.collection = self.client.get_or_create_collection(
             name=self.collection.name,
